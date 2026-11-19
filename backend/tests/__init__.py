@@ -1,0 +1,1 @@
+# SmartGateAI Tests Package

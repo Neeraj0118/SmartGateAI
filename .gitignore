@@ -1,0 +1,55 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual Environment
+venv/
+.venv/
+
+# Environment Secrets & Credentials
+.env
+.env.*
+*.env
+backend/.env
+!.env.example
+
+# Weights & Models (large binary files)
+backend/weights/*.onnx
+
+# Data, Logs & Storage
+backend/storage/
+*.log
+backend/tests/api_test_storage/
+backend/tests/temp_test_storage/
+
+# Frontend
+frontend/node_modules/
+frontend/.env
+frontend/dist/
+
+# IDE & OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
