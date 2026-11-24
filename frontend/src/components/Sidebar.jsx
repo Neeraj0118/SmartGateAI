@@ -1,13 +1,14 @@
 import { NavLink } from 'react-router-dom'
 import {
   LayoutDashboard, Camera, Users, ClipboardList, Settings,
-  Shield, Car, UserX, DoorOpen,
+  Shield, Car, UserX, DoorOpen, ShieldCheck,
 } from 'lucide-react'
 
 const NAV = [
   { to: '/', icon: LayoutDashboard, label: 'Dashboard' },
   { to: '/monitoring', icon: Camera, label: 'Live Monitor' },
   { to: '/students', icon: Users, label: 'Students' },
+  { to: '/hostel-permissions', icon: ShieldCheck, label: 'Hostel Passes' },
   { to: '/attendance', icon: ClipboardList, label: 'Attendance' },
   { to: '/gate', icon: DoorOpen, label: 'Gate Activity' },
   { to: '/visitors', icon: UserX, label: 'Visitors' },

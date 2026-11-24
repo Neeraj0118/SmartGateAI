@@ -10,6 +10,7 @@ import Attendance from './pages/Attendance'
 import Gate       from './pages/Gate'
 import Visitors   from './pages/Visitors'
 import Vehicles   from './pages/Vehicles'
+import HostelPermissions from './pages/HostelPermissions'
 import Settings   from './pages/Settings'
 
 /* ── Login overlay ─────────────────────────────────────────── */
@@ -91,6 +92,7 @@ function AppRoutes() {
           <Route path="/gate"       element={<Gate />} />
           <Route path="/visitors"   element={<Visitors />} />
           <Route path="/vehicles"   element={<Vehicles />} />
+          <Route path="/hostel-permissions" element={<HostelPermissions />} />
           <Route path="/settings"   element={<Settings />} />
         </Routes>
       </BrowserRouter>

@@ -68,6 +68,10 @@ def register_student(
     email: Optional[str] = Form(None, description="Contact email address"),
     phone: Optional[str] = Form(None, description="Contact phone number"),
     consent_given: bool = Form(..., description="Explicit consent for biometric enrollment"),
+    category: str = Form("Day Scholar", description="'Day Scholar' or 'Hosteller'"),
+    hostel_name: Optional[str] = Form(None, description="Hostel Name if Hosteller"),
+    hostel_block: Optional[str] = Form(None, description="Hostel Block if Hosteller"),
+    room_number: Optional[str] = Form(None, description="Room Number if Hosteller"),
     photos: List[UploadFile] = File(..., description="1 to 2 face photographs for registration"),
     service: StudentService = Depends(get_student_service),
     _admin: str = Depends(require_admin)
@@ -98,7 +102,11 @@ def register_student(
             department=department,
             email=email,
             phone=phone,
-            consent_given=consent_given
+            consent_given=consent_given,
+            category=category,
+            hostel_name=hostel_name,
+            hostel_block=hostel_block,
+            room_number=room_number
         )
         return StudentResponse.model_validate(student)
 
@@ -190,7 +198,11 @@ def update_student(
             department=payload.department,
             email=payload.email,
             phone=payload.phone,
-            is_active=payload.is_active
+            is_active=payload.is_active,
+            category=payload.category,
+            hostel_name=payload.hostel_name,
+            hostel_block=payload.hostel_block,
+            room_number=payload.room_number
         )
         return StudentResponse.model_validate(updated)
     except KeyError:

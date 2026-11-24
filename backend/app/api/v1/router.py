@@ -8,6 +8,7 @@ from .endpoints.students import router as students_router
 from .endpoints.camera import router as camera_router
 from .endpoints.attendance import router as attendance_router
 from .endpoints.vehicles import router as vehicles_router
+from .endpoints.hostel_permissions import router as hostel_permissions_router
 
 api_v1_router = APIRouter()
 
@@ -16,3 +17,4 @@ api_v1_router.include_router(students_router, prefix="/students", tags=["Student
 api_v1_router.include_router(camera_router, prefix="/camera", tags=["Camera"])
 api_v1_router.include_router(attendance_router, prefix="/attendance", tags=["Attendance"])
 api_v1_router.include_router(vehicles_router, prefix="/vehicles", tags=["Vehicles"])
+api_v1_router.include_router(hostel_permissions_router, prefix="/hostel-permissions", tags=["Hostel Permissions"])

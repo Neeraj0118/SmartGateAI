@@ -17,6 +17,7 @@ from sqlalchemy.orm import Session
 
 from app.api.deps import require_admin, get_db_session
 from app.models.recognition_event import RecognitionEvent
+from app.models.student import Student
 from app.schemas.recognition_event import AttendanceListResponse, AttendanceStatsResponse, RecognitionEventResponse
 
 logger = logging.getLogger("SmartGateAI.AttendanceEndpoints")
@@ -35,7 +36,7 @@ def _to_ist_str(dt: Optional[datetime]) -> str:
     return dt.astimezone(IST).strftime("%d %b %Y %I:%M:%S %p IST")
 
 
-def _build_filtered_stmt(stmt, is_known, student_id_search, date_filter, event_type=None):
+def _build_filtered_stmt(stmt, is_known, student_id_search, date_filter, event_type=None, category=None, db: Session = None):
     if is_known is not None:
         stmt = stmt.where(RecognitionEvent.is_known == is_known)
     if student_id_search:
@@ -43,11 +44,17 @@ def _build_filtered_stmt(stmt, is_known, student_id_search, date_filter, event_t
     if date_filter:
         try:
             day = datetime.strptime(date_filter, "%Y-%m-%d").date()
-            stmt = stmt.where(func.date(RecognitionEvent.captured_at) == str(day))
+            # Convert captured_at (stored in UTC) to IST date by adding +330 minutes (5h 30m)
+            stmt = stmt.where(func.date(RecognitionEvent.captured_at, '+330 minutes') == str(day))
         except ValueError:
             pass
     if event_type:
         stmt = stmt.where(RecognitionEvent.event_type == event_type)
+    if category and db:
+        matched_student_ids = db.scalars(
+            select(Student.student_id).where(Student.category == category)
+        ).all()
+        stmt = stmt.where(RecognitionEvent.student_id.in_(matched_student_ids))
     return stmt
 
 
@@ -57,13 +64,14 @@ def list_attendance(
     limit: int = Query(50, ge=1, le=500),
     is_known: Optional[bool] = Query(None),
     student_id_search: Optional[str] = Query(None),
-    date_filter: Optional[str] = Query(None, description="Format YYYY-MM-DD"),
+    date_filter: Optional[str] = Query(None, description="Format YYYY-MM-DD (IST Date)"),
     event_type: Optional[str] = Query(None, description="Filter by event type: 'entry' or 'exit'"),
+    category: Optional[str] = Query(None, description="Filter by category: 'Day Scholar' or 'Hosteller'"),
     db: Session = Depends(get_db_session),
     _: str = Depends(require_admin),
 ):
     """List recognition events with optional filters (admin only)."""
-    stmt = _build_filtered_stmt(select(RecognitionEvent), is_known, student_id_search, date_filter, event_type)
+    stmt = _build_filtered_stmt(select(RecognitionEvent), is_known, student_id_search, date_filter, event_type, category, db)
 
     total_stmt = select(func.count()).select_from(stmt.subquery())
     total: int = db.execute(total_stmt).scalar_one()
@@ -71,9 +79,23 @@ def list_attendance(
     stmt = stmt.order_by(RecognitionEvent.captured_at.desc()).offset(skip).limit(limit)
     rows = db.execute(stmt).scalars().all()
 
+    # Load categories for known students in batch
+    known_ids = [r.student_id for r in rows if r.student_id]
+    category_map = {}
+    if known_ids:
+        students = db.query(Student.student_id, Student.category).filter(Student.student_id.in_(known_ids)).all()
+        category_map = {s.student_id: s.category for s in students}
+
+    items = []
+    for r in rows:
+        item = RecognitionEventResponse.model_validate(r)
+        if r.student_id and r.student_id in category_map:
+            item.category = category_map[r.student_id]
+        items.append(item)
+
     return AttendanceListResponse(
         total=total,
-        items=[RecognitionEventResponse.model_validate(r) for r in rows],
+        items=items,
         skip=skip,
         limit=limit,
     )
@@ -132,7 +154,7 @@ def attendance_stats(
     # Note: stored values are UTC, so IST date = UTC date in most cases
     # We use func.date() which maps to SQLite's date() function
     today_events = db.execute(
-        select(RecognitionEvent).where(func.date(RecognitionEvent.captured_at) == str(today_ist))
+        select(RecognitionEvent).where(func.date(RecognitionEvent.captured_at, '+330 minutes') == str(today_ist))
     ).scalars().all()
 
     total_today = len(today_events)

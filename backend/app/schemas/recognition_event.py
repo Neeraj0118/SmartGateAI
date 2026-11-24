@@ -15,6 +15,7 @@ class RecognitionEventResponse(BaseModel):
     id: int
     student_id: Optional[str] = None
     full_name: Optional[str] = None
+    category: Optional[str] = None
     event_type: str
     gate_id: str = "main"
     similarity: Optional[float] = None

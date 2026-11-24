@@ -29,6 +29,10 @@ class StudentResponse(BaseModel):
     phone: Optional[str] = None
     consent_given: bool = Field(..., description="Explicit biometric enrollment consent")
     is_active: bool
+    category: str = Field(default="Day Scholar", description="'Day Scholar' or 'Hosteller'")
+    hostel_name: Optional[str] = Field(None, description="Hostel Name if hosteller")
+    hostel_block: Optional[str] = Field(None, description="Hostel Block if hosteller")
+    room_number: Optional[str] = Field(None, description="Room Number if hosteller")
     created_at: datetime
     updated_at: datetime
     embeddings: List[FaceEmbeddingResponse] = Field(
@@ -46,6 +50,10 @@ class StudentUpdate(BaseModel):
     email: Optional[str] = Field(None, max_length=120)
     phone: Optional[str] = Field(None, max_length=30)
     is_active: Optional[bool] = None
+    category: Optional[str] = Field(None, description="'Day Scholar' or 'Hosteller'")
+    hostel_name: Optional[str] = None
+    hostel_block: Optional[str] = None
+    room_number: Optional[str] = None
 
 
 class StudentListResponse(BaseModel):

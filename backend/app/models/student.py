@@ -37,6 +37,12 @@ class Student(Base):
     consent_given: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
 
+    # Residential Category: 'Day Scholar' or 'Hosteller'
+    category: Mapped[str] = mapped_column(String(20), default="Day Scholar", nullable=False)
+    hostel_name: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    hostel_block: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
+    room_number: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
+
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), nullable=False)
     updated_at: Mapped[datetime] = mapped_column(
         DateTime, server_default=func.now(), onupdate=func.now(), nullable=False

@@ -1,10 +1,11 @@
 import { useEffect, useState, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
-  Users, Camera, Eye, AlertTriangle, Activity, Clock, RefreshCw, LogIn, LogOut, CheckCircle,
+  Users, Camera, Eye, AlertTriangle, Activity, Clock, RefreshCw, LogIn, LogOut, CheckCircle, ShieldAlert,
+  ShieldCheck, Building, ArrowRight,
 } from 'lucide-react'
 import {
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
+  BarChart, Bar, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
 } from 'recharts'
 import Layout from '../components/Layout'
 import StatCard from '../components/StatCard'
@@ -14,6 +15,7 @@ import { getHealth } from '../api/health'
 import { listStudents } from '../api/students'
 import { getAttendanceStats, listAttendance } from '../api/attendance'
 import { getCameraStatus, getCameraMode, startCamera, stopCamera } from '../api/camera'
+import { getHostelStats } from '../api/hostelPermissions'
 import { toIST } from '../utils/time'
 
 export default function Dashboard() {
@@ -25,6 +27,7 @@ export default function Dashboard() {
   const [cameraStatus, setCameraStatus] = useState(null)
   const [cameraMode, setCameraMode] = useState(null)
   const [recentEvents, setRecentEvents] = useState([])
+  const [hostelStats, setHostelStats] = useState(null)
   const [loading, setLoading] = useState(true)
   const [actionLoading, setActionLoading] = useState(false)
   const [error, setError] = useState(null)
@@ -43,14 +46,16 @@ export default function Dashboard() {
       if (camMode.status === 'fulfilled') setCameraMode(camMode.value.data)
 
       if (adminKey) {
-        const [s, at, ev] = await Promise.allSettled([
+        const [s, at, ev, hs] = await Promise.allSettled([
           listStudents(adminKey, { active_only: true }),
           getAttendanceStats(adminKey),
           listAttendance(adminKey, { limit: 10 }),
+          getHostelStats(adminKey),
         ])
         if (s.status === 'fulfilled') setStudents(s.value.data?.items || [])
         if (at.status === 'fulfilled') setStats(at.value.data)
         if (ev.status === 'fulfilled') setRecentEvents(ev.value.data?.items || [])
+        if (hs.status === 'fulfilled') setHostelStats(hs.value.data)
       }
     } catch (e) { setError('Failed to load dashboard data') }
     finally { setLoading(false) }
@@ -85,6 +90,13 @@ export default function Dashboard() {
   const isOnline = health?.status === 'healthy' || health?.status === 'ok'
   const camRunning = cameraStatus?.running
   const gateMode = cameraMode?.gate_mode || cameraStatus?.gate_mode || 'entry'
+  const unknownDetectedNow = camRunning && (cameraStatus?.unknown_count > 0)
+
+  const chartData = [
+    { label: 'Entries', count: stats?.entries_today ?? 0, fill: '#315C4A' },
+    { label: 'Exits', count: stats?.exits_today ?? 0, fill: '#D58A36' },
+    { label: 'Unknown', count: stats?.unknown_today ?? 0, fill: '#DC2626' },
+  ]
 
   return (
     <Layout
@@ -96,6 +108,61 @@ export default function Dashboard() {
         </button>
       }
     >
+      {/* Real-time Unknown Person Detection Banner */}
+      {unknownDetectedNow && (
+        <div className="mb-5 p-4 bg-gradient-to-r from-red-600 to-rose-600 border-2 border-red-700 text-white rounded-2xl shadow-xl flex flex-wrap items-center justify-between gap-3 animate-pulse">
+          <div className="flex items-center gap-3">
+            <div className="p-2.5 bg-white/20 rounded-xl flex-shrink-0 animate-bounce">
+              <ShieldAlert size={26} className="text-yellow-300" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h2 className="text-sm font-black uppercase tracking-wide">
+                  ⚠️ Live Alert: Unknown Person Detected at {gateMode.toUpperCase()} Gate!
+                </h2>
+                <span className="bg-white text-red-700 text-xs px-2.5 py-0.5 rounded-full font-black shadow-sm">
+                  {cameraStatus.unknown_count} Unknown
+                </span>
+              </div>
+              <p className="text-xs text-red-100 mt-0.5">
+                Unregistered face currently visible on camera. Immediate security check recommended.
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={() => navigate(`/monitoring?mode=${gateMode}`)}
+            className="px-4 py-2 bg-white text-red-700 text-xs font-bold rounded-lg hover:bg-red-50 transition-colors shadow-sm flex items-center gap-1.5 flex-shrink-0"
+          >
+            <Camera size={14} /> Open Live Monitor →
+          </button>
+        </div>
+      )}
+
+      {/* Late Return Alert Banner */}
+      {hostelStats?.late_returns_count > 0 && (
+        <div className="mb-5 p-4 bg-gradient-to-r from-amber-600 to-rose-600 border-2 border-amber-700 text-white rounded-2xl shadow-lg flex flex-wrap items-center justify-between gap-3 animate-pulse">
+          <div className="flex items-center gap-3">
+            <div className="p-2.5 bg-white/20 rounded-xl flex-shrink-0">
+              <AlertTriangle size={24} className="text-yellow-200" />
+            </div>
+            <div>
+              <h2 className="text-sm font-black uppercase tracking-wide">
+                ⚠️ Hostel Security Alert: {hostelStats.late_returns_count} Student(s) Overdue for Return!
+              </h2>
+              <p className="text-xs text-amber-100 mt-0.5">
+                Expected return deadline has passed and students are still outside campus.
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={() => navigate('/hostel-permissions')}
+            className="px-4 py-2 bg-white text-amber-900 text-xs font-bold rounded-lg hover:bg-amber-50 transition-colors shadow-sm flex items-center gap-1.5 flex-shrink-0"
+          >
+            <ShieldCheck size={14} /> Review Active Outings →
+          </button>
+        </div>
+      )}
+
       {error && (
         <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-errored text-sm flex items-center gap-2">
           <AlertTriangle size={15} /> {error}
@@ -140,11 +207,11 @@ export default function Dashboard() {
               </p>
               <p className="text-[10px] text-muted font-semibold uppercase tracking-wider">Known</p>
             </div>
-            <div className="p-2.5 bg-red-50/80 rounded-lg">
-              <p className="text-lg font-bold text-errored">
+            <div className={`p-2.5 rounded-lg ${camRunning && gateMode === 'entry' && (cameraStatus?.unknown_count > 0) ? 'bg-red-600 text-white animate-pulse' : 'bg-red-50/80'}`}>
+              <p className={`text-lg font-bold ${camRunning && gateMode === 'entry' && (cameraStatus?.unknown_count > 0) ? 'text-white' : 'text-errored'}`}>
                 {camRunning && gateMode === 'entry' ? (cameraStatus?.unknown_count ?? 0) : '—'}
               </p>
-              <p className="text-[10px] text-muted font-semibold uppercase tracking-wider">Unknown</p>
+              <p className={`text-[10px] font-semibold uppercase tracking-wider ${camRunning && gateMode === 'entry' && (cameraStatus?.unknown_count > 0) ? 'text-white/90' : 'text-muted'}`}>Unknown</p>
             </div>
           </div>
 
@@ -208,11 +275,11 @@ export default function Dashboard() {
               </p>
               <p className="text-[10px] text-muted font-semibold uppercase tracking-wider">Known</p>
             </div>
-            <div className="p-2.5 bg-red-50/80 rounded-lg">
-              <p className="text-lg font-bold text-errored">
+            <div className={`p-2.5 rounded-lg ${camRunning && gateMode === 'exit' && (cameraStatus?.unknown_count > 0) ? 'bg-red-600 text-white animate-pulse' : 'bg-red-50/80'}`}>
+              <p className={`text-lg font-bold ${camRunning && gateMode === 'exit' && (cameraStatus?.unknown_count > 0) ? 'text-white' : 'text-errored'}`}>
                 {camRunning && gateMode === 'exit' ? (cameraStatus?.unknown_count ?? 0) : '—'}
               </p>
-              <p className="text-[10px] text-muted font-semibold uppercase tracking-wider">Unknown</p>
+              <p className={`text-[10px] font-semibold uppercase tracking-wider ${camRunning && gateMode === 'exit' && (cameraStatus?.unknown_count > 0) ? 'text-white/90' : 'text-muted'}`}>Unknown</p>
             </div>
           </div>
 
@@ -278,6 +345,48 @@ export default function Dashboard() {
         />
       </div>
 
+      {/* Hostel Permissions Overview Row */}
+      <div className="card mb-6 border-l-4 border-purple-600 bg-gradient-to-r from-purple-50/30 via-white to-stone-50/50">
+        <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
+          <div className="flex items-center gap-2.5">
+            <div className="p-2 bg-purple-100 text-purple-700 rounded-xl">
+              <Building size={18} />
+            </div>
+            <div>
+              <h2 className="text-sm font-bold text-charcoal">Hostel Exit & Outing Status</h2>
+              <p className="text-xs text-muted">Real-time tracking of hosteller passes and off-campus status</p>
+            </div>
+          </div>
+          <button
+            onClick={() => navigate('/hostel-permissions')}
+            className="btn-secondary text-xs py-1.5 px-3 flex items-center gap-1.5 font-semibold text-purple-800 hover:bg-purple-50"
+          >
+            Manage Passes <ArrowRight size={13} />
+          </button>
+        </div>
+
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-center">
+          <div className="p-3 bg-white rounded-xl border border-stone-200">
+            <p className="text-xl font-bold text-charcoal">{hostelStats?.active_outings_count ?? '—'}</p>
+            <p className="text-xs text-muted font-medium mt-0.5">Students on Outing</p>
+          </div>
+          <div className="p-3 bg-white rounded-xl border border-stone-200">
+            <p className="text-xl font-bold text-amber-600">{hostelStats?.pending_count ?? '—'}</p>
+            <p className="text-xs text-muted font-medium mt-0.5">Passes Pending Approval</p>
+          </div>
+          <div className={`p-3 rounded-xl border ${hostelStats?.late_returns_count > 0 ? 'bg-red-50 border-red-200' : 'bg-white border-stone-200'}`}>
+            <p className={`text-xl font-bold ${hostelStats?.late_returns_count > 0 ? 'text-errored' : 'text-charcoal'}`}>
+              {hostelStats?.late_returns_count ?? '—'}
+            </p>
+            <p className="text-xs text-muted font-medium mt-0.5">Overdue / Late</p>
+          </div>
+          <div className="p-3 bg-white rounded-xl border border-stone-200">
+            <p className="text-xl font-bold text-forest">{hostelStats?.approved_count ?? '—'}</p>
+            <p className="text-xs text-muted font-medium mt-0.5">Approved Passes</p>
+          </div>
+        </div>
+      </div>
+
       {/* Chart + Recent Activity */}
       <div className="grid grid-cols-1 xl:grid-cols-5 gap-5 mb-5">
         {/* Entry/Exit Comparison Chart */}
@@ -292,11 +401,7 @@ export default function Dashboard() {
           {stats ? (
             <ResponsiveContainer width="100%" height={210}>
               <BarChart
-                data={[
-                  { label: 'Entries', count: stats.entries_today ?? 0, fill: '#315C4A' },
-                  { label: 'Exits', count: stats.exits_today ?? 0, fill: '#D58A36' },
-                  { label: 'Unknown', count: stats.unknown_today ?? 0, fill: '#c2410c' },
-                ]}
+                data={chartData}
                 barSize={36}
               >
                 <CartesianGrid strokeDasharray="3 3" stroke="#e7e5e4" vertical={false} />
@@ -305,7 +410,11 @@ export default function Dashboard() {
                 <Tooltip
                   contentStyle={{ background: '#fff', border: '1px solid #e7e5e4', borderRadius: 8, fontSize: 12 }}
                 />
-                <Bar dataKey="count" name="Events" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="count" name="Events" radius={[4, 4, 0, 0]}>
+                  {chartData.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={entry.fill} />
+                  ))}
+                </Bar>
               </BarChart>
             </ResponsiveContainer>
           ) : (

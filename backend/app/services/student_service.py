@@ -133,6 +133,10 @@ class StudentService:
         email: Optional[str] = None,
         phone: Optional[str] = None,
         consent_given: bool = True,
+        category: str = "Day Scholar",
+        hostel_name: Optional[str] = None,
+        hostel_block: Optional[str] = None,
+        room_number: Optional[str] = None,
         min_blur_score: float = 50.0
     ) -> Student:
         """
@@ -179,7 +183,11 @@ class StudentService:
             email=email.strip() if email else None,
             phone=phone.strip() if phone else None,
             consent_given=consent_given,
-            is_active=True
+            is_active=True,
+            category=category.strip() if category else "Day Scholar",
+            hostel_name=hostel_name.strip() if hostel_name else None,
+            hostel_block=hostel_block.strip() if hostel_block else None,
+            room_number=room_number.strip() if room_number else None
         )
         self.db.add(student)
         self.db.flush()  # Assigns student.id
@@ -302,7 +310,11 @@ class StudentService:
         department: Optional[str] = None,
         email: Optional[str] = None,
         phone: Optional[str] = None,
-        is_active: Optional[bool] = None
+        is_active: Optional[bool] = None,
+        category: Optional[str] = None,
+        hostel_name: Optional[str] = None,
+        hostel_block: Optional[str] = None,
+        room_number: Optional[str] = None
     ) -> Student:
         """Update student details and synchronize in-memory registry."""
         student = self.get_student_by_id(student_id)
@@ -319,6 +331,14 @@ class StudentService:
             student.phone = phone.strip() if phone else None
         if is_active is not None:
             student.is_active = is_active
+        if category is not None:
+            student.category = category.strip() if category else "Day Scholar"
+        if hostel_name is not None:
+            student.hostel_name = hostel_name.strip() if hostel_name else None
+        if hostel_block is not None:
+            student.hostel_block = hostel_block.strip() if hostel_block else None
+        if room_number is not None:
+            student.room_number = room_number.strip() if room_number else None
 
         self.db.commit()
         self.db.refresh(student)
